@@ -34,7 +34,7 @@ const NOSERADI_UUID = {
 };
 
 /**
- * Manage communication with a MicroBit peripheral over a Scrath Link client socket.
+ * Manage communication with a Noseradi peripheral over a Scrath Link client socket.
  */
 class Noseradi {
 
@@ -281,17 +281,17 @@ const NoseradiBodyServos = {
 };
 
 // /**
-//  * Enum for micro:bit pin states.
+//  * Enum for noseradi pin states.
 //  * @readonly
 //  * @enum {string}
 //  */
-// const MicroBitPinState = {
+// const NoseradiPinState = {
 //     ON: 'on',
 //     OFF: 'off'
 // };
 
 /**
- * Scratch 3.0 blocks to interact with a MicroBit peripheral.
+ * Scratch 3.0 blocks to interact with a Noseradi peripheral.
  */
 class Scratch3NoseradiBlocks {
 
@@ -509,7 +509,7 @@ class Scratch3NoseradiBlocks {
      * @param {object} args - the block's arguments.
      */
     outputBodyServo (args) {
-        if (args.BODY_SERVO_OUT === NoseradiBodyLEDs.SERVO1) {
+        if (args.BODY_SERVO === NoseradiBodyServos.SERVO1) {
             this._peripheral.bodyServiceSend(args.BODY_SERVO_OUT, 0xff, 0xff, 0xff);
         }
         this._peripheral.bodyServiceSend(0xff, args.BODY_SERVO_OUT, 0xff, 0xff);
