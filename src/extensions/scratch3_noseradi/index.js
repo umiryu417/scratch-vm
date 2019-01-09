@@ -29,8 +29,9 @@ const BLETimeout = 6000;
 const NOSERADI_UUID = {
     search_service: 'f7fce500-7a0b-4b89-a675-a79137223e2c',
     body_service: 'f7fce510-7a0b-4b89-a675-a79137223e2c',
-    extra_surbo_charactics: 'f7fce520-7a0b-4b89-a675-a79137223e2c',
-    body_charactics: 'f7fce518-7a0b-4b89-a675-a79137223e2c'
+    body_charactics: 'f7fce518-7a0b-4b89-a675-a79137223e2c',
+    extra_surbo_service: 'f7fce520-7a0b-4b89-a675-a79137223e2c',
+    extra_surbo_charactics: 'f7fce521-7a0b-4b89-a675-a79137223e2c'
 };
 
 /**
@@ -102,17 +103,6 @@ class Noseradi {
     }
 
     /**
-     * body port output.
-     * @param {Uint8} servo1 - サーボ出力１(0:free,1-254,255:not change)
-     * @param {Uint8} servo2 - サーボ出力２(0:free,1-254,255:not change)
-     * @param {Uint8} led1 - LED出力1(0, 1, 255:not change)
-     * @param {Uint8} led2 - LED出力1(0, 1, 255:not change)
-     */
-    bodyServiceSend (servo1, servo2, led1, led2) {
-        this.sendBody(servo1, servo2, led1, led2);
-    }
-
-    /**
      * @return {number} - the latest value received for the tilt sensor's tilt about the X axis.
      */
     get getAnalogIn1 () {
@@ -137,7 +127,7 @@ class Noseradi {
             filters: [
                 {services: [NOSERADI_UUID.search_service]}
             ],
-            optionalServices: [NOSERADI_UUID.body_service, NOSERADI_UUID.extra_surbo_charactics]
+            optionalServices: [NOSERADI_UUID.body_service, NOSERADI_UUID.extra_surbo_service]
         }, this._onConnect);
     }
 
@@ -180,7 +170,7 @@ class Noseradi {
      * @param {Uint8} led1 - LED出力1(0, 1, 255:not change)
      * @param {Uint8} led2 - LED出力1(0, 1, 255:not change)
      */
-    sendBody (servo1, servo2, led1, led2) {
+    bodyServiceSend (servo1, servo2, led1, led2) {
         if (!this.isConnected()) return;
         if (this._busy) return;
 
@@ -216,6 +206,36 @@ class Noseradi {
         const data = Base64Util.uint8ArrayToBase64(output);
 
         this._ble.write(NOSERADI_UUID.body_service, NOSERADI_UUID.body_charactics, data, 'base64', false).then(
+            () => {
+                this._busy = false;
+                window.clearTimeout(this._busyTimeoutID);
+            }
+        );
+    }
+
+    /**
+     *
+     * @param {Uint8Array} output - output full Servo and LED
+     */
+    extraServoSend (output) {
+        if (!this.isConnected()) return;
+        if (this._busy) return;
+
+        // Set a busy flag so that while we are sending a message and waiting for
+        // the response, additional messages are ignored.
+        this._busy = true;
+
+        // Set a timeout after which to reset the busy flag. This is used in case
+        // a BLE message was sent for which we never received a response, because
+        // e.g. the peripheral was turned off after the message was sent. We reset
+        // the busy flag after a while so that it is possible to try again later.
+        this._busyTimeoutID = window.setTimeout(() => {
+            this._busy = false;
+        }, 5000);
+
+        const data = Base64Util.uint8ArrayToBase64(output);
+        // eslint-disable-next-line max-len
+        this._ble.write(NOSERADI_UUID.extra_surbo_service, NOSERADI_UUID.extra_surbo_charactics, data, 'base64', false).then(
             () => {
                 this._busy = false;
                 window.clearTimeout(this._busyTimeoutID);
@@ -483,6 +503,86 @@ class Scratch3NoseradiBlocks {
                             defaultValue: NoseradiLedOuts.ON
                         }
                     }
+                },
+                {
+                    opcode: 'outputExtraServo',
+                    text: formatMessage({
+                        id: 'noseradi.outputExtraServo',
+                        // eslint-disable-next-line max-len
+                        default: '拡張サーボ [DEV_NO] に [SERVO0] [SERVO1] [SERVO2] [SERVO3] [SERVO4] [SERVO5] [SERVO6] [SERVO7] [SERVO8] [SERVO9] [SERVO10] [SERVO11] [SERVO12] [SERVO13] [SERVO14] [SERVO15] を出力する',
+                        description: 'output servo'
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        DEV_NO: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        SERVO0: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO1: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO2: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO3: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO4: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO5: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO6: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO7: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO8: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO9: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO10: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO11: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO12: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO13: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO14: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        },
+                        SERVO15: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        }
+                    }
                 }
             ],
             menus: {
@@ -537,6 +637,32 @@ class Scratch3NoseradiBlocks {
      */
     outputBody (args) {
         this._peripheral.bodyServiceSend(args.SERVO_OUTPUT1, args.SERVO_OUTPUT2, args.LED_OUTPUT1, args.LED_OUTPUT2);
+    }
+
+    /**
+     *
+     * @param {object} args - output full Servo and LED
+     */
+    outputExtraServo (args) {
+        const output = new Uint8Array(17);
+        output[0] = args.DEV_NO;
+        output[1] = args.SERVO0;
+        output[2] = args.SERVO1;
+        output[3] = args.SERVO2;
+        output[4] = args.SERVO3;
+        output[5] = args.SERVO4;
+        output[6] = args.SERVO5;
+        output[7] = args.SERVO6;
+        output[8] = args.SERVO7;
+        output[9] = args.SERVO8;
+        output[10] = args.SERVO9;
+        output[11] = args.SERVO10;
+        output[12] = args.SERVO11;
+        output[13] = args.SERVO12;
+        output[14] = args.SERVO13;
+        output[15] = args.SERVO14;
+        output[16] = args.SERVO15;
+        this._peripheral.extraServoSend(output);
     }
 
 }
