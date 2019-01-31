@@ -124,8 +124,11 @@ class VirtualMachine extends EventEmitter {
         this.runtime.on(Runtime.PERIPHERAL_REQUEST_ERROR, () =>
             this.emit(Runtime.PERIPHERAL_REQUEST_ERROR)
         );
-        this.runtime.on(Runtime.PERIPHERAL_DISCONNECT_ERROR, data =>
-            this.emit(Runtime.PERIPHERAL_DISCONNECT_ERROR, data)
+        this.runtime.on(Runtime.PERIPHERAL_DISCONNECTED, () =>
+            this.emit(Runtime.PERIPHERAL_DISCONNECTED)
+        );
+        this.runtime.on(Runtime.PERIPHERAL_CONNECTION_LOST_ERROR, data =>
+            this.emit(Runtime.PERIPHERAL_CONNECTION_LOST_ERROR, data)
         );
         this.runtime.on(Runtime.PERIPHERAL_SCAN_TIMEOUT, () =>
             this.emit(Runtime.PERIPHERAL_SCAN_TIMEOUT)
@@ -210,7 +213,7 @@ class VirtualMachine extends EventEmitter {
         const threadData = this.runtime.threads.filter(thread => thread.target === instance.editingTarget);
         // Remove the target key, since it's a circular reference.
         const filteredThreadData = JSON.stringify(threadData, (key, value) => {
-            if (key === 'target') return;
+            if (key === 'target' || key === 'blockContainer') return;
             return value;
         }, 2);
         this.emit('playgroundData', {
@@ -495,11 +498,18 @@ class VirtualMachine extends EventEmitter {
 
         return Promise.all(extensionPromises).then(() => {
             targets.forEach(target => {
-                this.runtime.targets.push(target);
+                this.runtime.addTarget(target);
                 (/** @type RenderedTarget */ target).updateAllDrawableProperties();
                 // Ensure unique sprite name
                 if (target.isSprite()) this.renameSprite(target.id, target.getName());
             });
+            // Sort the executable targets by layerOrder.
+            // Remove layerOrder property after use.
+            this.runtime.executableTargets.sort((a, b) => a.layerOrder - b.layerOrder);
+            targets.forEach(target => {
+                delete target.layerOrder;
+            });
+
             // Select the first target for editing, e.g., the first sprite.
             if (wholeProject && (targets.length > 1)) {
                 this.editingTarget = targets[1];
@@ -1016,7 +1026,8 @@ class VirtualMachine extends EventEmitter {
             throw new Error('No sprite associated with this target.');
         }
         return target.duplicate().then(newTarget => {
-            this.runtime.targets.push(newTarget);
+            this.runtime.addTarget(newTarget);
+            newTarget.goBehindOther(target);
             this.setEditingTarget(newTarget.id);
         });
     }
@@ -1097,7 +1108,7 @@ class VirtualMachine extends EventEmitter {
      */
     blockListener (e) {
         if (this.editingTarget) {
-            this.editingTarget.blocks.blocklyListen(e, this.runtime);
+            this.editingTarget.blocks.blocklyListen(e);
         }
     }
 
@@ -1106,7 +1117,7 @@ class VirtualMachine extends EventEmitter {
      * @param {!Blockly.Event} e Any Blockly event.
      */
     flyoutBlockListener (e) {
-        this.runtime.flyoutBlocks.blocklyListen(e, this.runtime);
+        this.runtime.flyoutBlocks.blocklyListen(e);
     }
 
     /**
@@ -1117,7 +1128,7 @@ class VirtualMachine extends EventEmitter {
         // Filter events by type, since monitor blocks only need to listen to these events.
         // Monitor blocks shouldn't be destroyed when flyout blocks are deleted.
         if (['create', 'change'].indexOf(e.type) !== -1) {
-            this.runtime.monitorBlocks.blocklyListen(e, this.runtime);
+            this.runtime.monitorBlocks.blocklyListen(e);
         }
     }
 
@@ -1129,8 +1140,7 @@ class VirtualMachine extends EventEmitter {
         // Filter events by type, since blocks only needs to listen to these
         // var events.
         if (['var_create', 'var_rename', 'var_delete'].indexOf(e.type) !== -1) {
-            this.runtime.getTargetForStage().blocks.blocklyListen(e,
-                this.runtime);
+            this.runtime.getTargetForStage().blocks.blocklyListen(e);
         }
     }
 

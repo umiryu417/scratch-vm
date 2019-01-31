@@ -25,7 +25,7 @@ class Target extends EventEmitter {
         super();
 
         if (!blocks) {
-            blocks = new Blocks();
+            blocks = new Blocks(runtime);
         }
 
         /**
@@ -69,10 +69,6 @@ class Target extends EventEmitter {
          * @type {Object.<string, *>}
          */
         this._edgeActivatedHatValues = {};
-
-        if (this.runtime) {
-            this.runtime.addExecutable(this);
-        }
     }
 
     /**

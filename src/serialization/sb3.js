@@ -447,6 +447,13 @@ const serializeTarget = function (target, extensions) {
     obj.broadcasts = vars.broadcasts;
     [obj.blocks, targetExtensions] = serializeBlocks(target.blocks);
     obj.comments = serializeComments(target.comments);
+
+    // TODO remove this check/patch when (#1901) is fixed
+    if (target.currentCostume < 0 || target.currentCostume >= target.costumes.length) {
+        log.warn(`currentCostume property for target ${target.name} is out of range`);
+        target.currentCostume = MathUtil.clamp(target.currentCostume, 0, target.costumes.length - 1);
+    }
+
     obj.currentCostume = target.currentCostume;
     obj.costumes = target.costumes.map(serializeCostume);
     obj.sounds = target.sounds.map(serializeSound);
@@ -495,8 +502,8 @@ const serializeMonitors = function (monitors) {
             visible: monitorData.visible
         };
         if (monitorData.mode !== 'list') {
-            serializedMonitor.min = monitorData.sliderMin;
-            serializedMonitor.max = monitorData.sliderMax;
+            serializedMonitor.sliderMin = monitorData.sliderMin;
+            serializedMonitor.sliderMax = monitorData.sliderMax;
         }
         return serializedMonitor;
     });
@@ -549,7 +556,7 @@ const serialize = function (runtime, targetId) {
     meta.vm = vmPackage.version;
 
     // Attach full user agent string to metadata if available
-    meta.agent = null;
+    meta.agent = 'none';
     if (typeof navigator !== 'undefined') meta.agent = navigator.userAgent;
 
     // Assemble payload and return
@@ -827,7 +834,7 @@ const parseScratchObject = function (object, runtime, extensions, zip) {
         return Promise.resolve(null);
     }
     // Blocks container for this object.
-    const blocks = new Blocks();
+    const blocks = new Blocks(runtime);
 
     // @todo: For now, load all Scratch objects (stage/sprites) as a Sprite.
     const sprite = new Sprite(blocks, runtime);
@@ -1007,7 +1014,7 @@ const parseScratchObject = function (object, runtime, extensions, zip) {
         target.visible = object.visible;
     }
     if (object.hasOwnProperty('currentCostume')) {
-        target.currentCostume = object.currentCostume;
+        target.currentCostume = MathUtil.clamp(object.currentCostume, 0, object.costumes.length - 1);
     }
     if (object.hasOwnProperty('rotationStyle')) {
         target.rotationStyle = object.rotationStyle;
@@ -1150,12 +1157,18 @@ const deserialize = function (json, runtime, zip, isSingleSprite) {
             parseScratchObject(target, runtime, extensions, zip))
     )
         .then(targets => targets // Re-sort targets back into original sprite-pane ordering
+            .map((t, i) => {
+                // Add layer order property to deserialized targets.
+                // This property is used to initialize executable targets in
+                // the correct order and is deleted in VM's installTargets function
+                t.layerOrder = i;
+                return t;
+            })
             .sort((a, b) => a.targetPaneOrder - b.targetPaneOrder)
             .map(t => {
                 // Delete the temporary properties used for
                 // sprite pane ordering and stage layer ordering
                 delete t.targetPaneOrder;
-                delete t.layerOrder;
                 return t;
             }))
         .then(targets => {
