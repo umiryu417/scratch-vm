@@ -128,7 +128,7 @@ class Noseradi {
                 {services: [NOSERADI_UUID.search_service]}
             ],
             optionalServices: [NOSERADI_UUID.body_service, NOSERADI_UUID.extra_surbo_service]
-        }, this._onConnect);
+        }, this._onConnect, this.disconnect);
     }
 
     /**
